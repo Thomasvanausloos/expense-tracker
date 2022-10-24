@@ -1,0 +1,56 @@
+service: expense-tracker
+frameworkVersion: '3'
+org: thomasvanausloos
+app: expense-tracker
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-finch
+
+custom:
+  tableName: 'users-table-${sls:stage}'
+  client:
+    bucketName: expense-tracker-ui
+    distributionFolder: ./frontend/dist
+    indexDocument: index.html
+    errorDocument: index.html
+
+provider:
+  name: aws
+  region: eu-west-1
+  runtime: nodejs16.x
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - Fn::GetAtt: [ UsersTable, Arn ]
+  environment:
+    USERS_TABLE: ${self:custom.tableName}
+
+functions:
+  api:
+    handler: ./api/handler.handler
+    events:
+      - httpApi: '*'
+
+resources:
+  Resources:
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.tableName}
